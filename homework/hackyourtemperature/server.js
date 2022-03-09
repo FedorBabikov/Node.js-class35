@@ -1,26 +1,54 @@
+"use strict";
+
 import express from "express";
+import fetch from "node-fetch";
+import { keys } from "./sources/keys.js";
+
+const PORT = process.env.PORT || 3000;
+const APIendpoint = "https://api.openweathermap.org/data/2.5/weather";
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-
 app.use(express.json());
 
-const response = { message: "" };
+const makeResponseObject = (message) => {
+  return { message };
+};
 
 app.get("/", (req, res) => {
-  response.message = "Hello from backend to frontend!";
-  res.json(response);
+  res.json(makeResponseObject("Hello from backend to frontend!"));
 });
 
 app.post("/weather", (req, res) => {
-  const cityName = req.body.cityName;
+  let cityName = req.body.cityName;
 
-  if (cityName) {
-    response.message = `City name is ${cityName}`;
-    res.json(response);
+  if (!cityName) {
+    res
+      .status(400)
+      .json(
+        makeResponseObject("There is no `cityName` property in the request!")
+      );
   } else {
-    response.message = "There is no `cityName` property in the request!";
-    res.status(400).json(response);
+    cityName = cityName[0].toUpperCase() + cityName.slice(1);
+    const url = `${APIendpoint}?q=${cityName}&units=metric&appid=${keys.API_KEY}`;
+
+    fetch(url)
+      .then((weatherResponse) => weatherResponse.json())
+      .then(({ main: { temp } }) =>
+        res.json(
+          makeResponseObject(
+            `Current temperature in the city of ${cityName} is ${temp} degrees celsius.`
+          )
+        )
+      )
+      .catch((err) => {
+        res
+          .status(500)
+          .json(
+            makeResponseObject(
+              `Something went terribly wrong: ${err.message}. Please try again later.`
+            )
+          );
+      });
   }
 });
 
